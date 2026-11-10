@@ -1,0 +1,152 @@
+<script lang="ts">
+    import { onMount } from 'svelte'
+    import { ModeWatcher, setMode } from 'mode-watcher'
+    import { mediaStore } from '$lib/stores/media'
+    import { nowPlaying } from '$lib/stores/now-playing'
+    import { trackObserver } from '$lib/observers/track'
+    import { playbackObserver } from '$lib/observers/playback'
+    import { tracklistObserver } from '$lib/observers/tracklist'
+    import { get } from 'svelte/store'
+    import { applyLook, watchSystemMode } from '$lib/utils/theming'
+    import { followPlayingCover } from '$lib/utils/cover-palette'
+    import { settingsStore } from '$lib/stores/settings'
+    import { looksStore } from '$lib/stores/looks'
+    import { listenForQuickPresetCommands } from '$lib/utils/quick-presets'
+    import { watchDiscography } from '$lib/utils/discography-watch'
+    import { watchFeatures } from '$lib/utils/features-watch'
+    import { watchPresetBindings } from '$lib/utils/preset-bindings'
+    import { watchSleepTimer } from '$lib/utils/sleep-timer'
+    import { watchSmartSpeed } from '$lib/utils/smart-speed'
+
+    // Import stores to ensure they're initialized and set up their listeners
+    import '$lib/stores/effects'
+    import '$lib/stores/playback'
+    import '$lib/stores/ms-params'
+    import '$lib/stores/reverb-params'
+    import '$lib/stores/eq-bands'
+    import '$lib/stores/volume'
+
+    import PipButton from '$lib/components/PipButton.svelte'
+    import SkipButton from '$lib/components/SkipButton.svelte'
+    import HeartButton from '$lib/components/HeartButton.svelte'
+    import SettingsPopover from '$lib/components/SettingsPopover.svelte'
+    import SnipMarkButton from '$lib/components/SnipMarkButton.svelte'
+    import SleepTrayButton from '$lib/components/SleepTrayButton.svelte'
+
+    let supportsPip = false
+    let themeChangeListener: (e: Event) => void
+    let unsubscribeLook: (() => void) | undefined
+    let unsubscribeLooks: (() => void) | undefined
+    let unsubscribeCover: (() => void) | undefined
+    let unwatchSystem: (() => void) | undefined
+    let unlistenQuickPresets: (() => void) | undefined
+    let unwatchDiscography: (() => void) | undefined
+    let unwatchFeatures: (() => void) | undefined
+    let unwatchBindings: (() => void) | undefined
+    let unwatchSleep: (() => void) | undefined
+    let unwatchSmartSpeed: (() => void) | undefined
+
+    async function init() {
+        setMode('dark')
+        await nowPlaying.observe()
+        await mediaStore.observe()
+        playbackObserver.observe()
+        await mediaStore.setActive(false)
+    }
+
+    function checkIfPipSupported() {
+        if (typeof window !== 'undefined' && 'pictureInPictureEnabled' in document) {
+            supportsPip = document.pictureInPictureEnabled
+        }
+    }
+
+    function setupListener() {
+        // Palette, "Apply theme", appearance and glass all live in settings, so
+        // one subscription keeps the page and rack in step whether the change
+        // came from this page, the PiP window or the toolbar popup (via storage).
+        // Saved looks (and which built-ins are hidden) live in their own store;
+        // a cover backdrop, and a palette that follows the cover, follow the
+        // playing track through the now-playing store.
+        const repaint = () => void applyLook(get(settingsStore), get(looksStore))
+        themeChangeListener = repaint
+        document.addEventListener('FROM_THEME_CHANGE', themeChangeListener)
+        unsubscribeLook = settingsStore.subscribe((s) => void applyLook(s, get(looksStore)))
+        unsubscribeLooks = looksStore.subscribe((l) => void applyLook(get(settingsStore), l))
+        unsubscribeCover = nowPlaying.subscribe((n) => void followPlayingCover(n.cover ?? null))
+        unwatchSystem = watchSystemMode(repaint)
+        // Preset keyboard commands (next / previous / slot N) arrive from the
+        // background as window messages; applying them here keeps the stores,
+        // and so every tab of the popover, in step with what is playing.
+        unlistenQuickPresets = listenForQuickPresetCommands()
+        // Every track played is noted against its album and artist.
+        unwatchDiscography = watchDiscography()
+        // Pausing the sound effects sends them to the chain as none, and back.
+        unwatchFeatures = watchFeatures()
+        // Presets pinned to an artist come on with their tracks and go after.
+        unwatchBindings = watchPresetBindings()
+        // The sleep timer set in the popup fades and pauses here, where the audio is.
+        unwatchSleep = watchSleepTimer()
+        // Smart speed's switch and the podcast/music distinction live in the seek store.
+        unwatchSmartSpeed = watchSmartSpeed()
+    }
+
+    function removeListener() {
+        if (themeChangeListener) {
+            document.removeEventListener('FROM_THEME_CHANGE', themeChangeListener)
+        }
+        unsubscribeLook?.()
+        unsubscribeLook = undefined
+        unsubscribeLooks?.()
+        unsubscribeLooks = undefined
+        unsubscribeCover?.()
+        unsubscribeCover = undefined
+        unwatchSystem?.()
+        unwatchSystem = undefined
+        unlistenQuickPresets?.()
+        unlistenQuickPresets = undefined
+        unwatchDiscography?.()
+        unwatchDiscography = undefined
+        unwatchFeatures?.()
+        unwatchFeatures = undefined
+        unwatchBindings?.()
+        unwatchBindings = undefined
+        unwatchSleep?.()
+        unwatchSleep = undefined
+        unwatchSmartSpeed?.()
+        unwatchSmartSpeed = undefined
+    }
+
+    onMount(() => {
+        init()
+        setupListener()
+        tracklistObserver.observe()
+        checkIfPipSupported()
+
+        // Lightweight cleanup only: this runs on every App remount (reconcile
+        // re-mounts when Spotify swaps the now-playing widget), so it must NOT
+        // restore Spotify's native controls or remove per-row buttons — that
+        // heavy, vanilla-restoring teardown is reserved for master-OFF and is
+        // driven from removeChorusUI() in the content script.
+        return () => {
+            nowPlaying.disconnect()
+            mediaStore.disconnect()
+            playbackObserver.disconnect()
+            tracklistObserver.disconnect()
+            trackObserver.disconnect()
+            removeListener()
+        }
+    })
+</script>
+
+<ModeWatcher defaultMode="dark" track={false} />
+
+<div id="chorus-ui" class="chorus-tray chorus-tray--player dark flex items-center gap-x-0.5">
+    <HeartButton />
+    <SettingsPopover />
+    <SkipButton />
+    <SnipMarkButton />
+    {#if supportsPip}
+        <PipButton />
+    {/if}
+    <SleepTrayButton />
+</div>

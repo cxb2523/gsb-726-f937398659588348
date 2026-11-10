@@ -1,0 +1,835 @@
+:root {
+    --br-1: 10px;
+    --br-2: 8px;
+    /* Space between a floating bar's panel edge and its controls, all four sides. */
+    --bar-pad: 12px;
+    --scrollbar: unset;
+
+    /* spotify default */
+    --spotify-text: var(--text-base);
+    --spotify-subtext: var(--text-subdued);
+    --spotify-main: var(--background-base);
+    --spotify-sidebar: var(--background-base);
+    --spotify-player: var(--background-base);
+    --spotify-highlight: var(--background-highlight);
+}
+
+.encore-dark-theme .encore-bright-accent-set {
+    --background-highlight: var(--chorus-button) !important;
+}
+
+/* Light appearance: the Encore tokens the hex rewrite does not reach stay dark
+   otherwise (pressed elevated surfaces, dividers, quiet icons), and the native
+   scrollbars and form controls follow the page. Spotify puts the theme class on
+   <html>, hence both the compound and the descendant forms. */
+html[data-mode='light'].encore-dark-theme,
+html[data-mode='light'].encore-dark-theme .encore-base-set,
+html[data-mode='light'] .encore-dark-theme,
+html[data-mode='light'] .encore-dark-theme .encore-base-set {
+    color-scheme: light;
+    --background-elevated-press: var(--chorus-button-disabled) !important;
+    --decorative-subdued: var(--chorus-button-disabled) !important;
+    --essential-subdued: var(--chorus-subtext) !important;
+}
+
+/* Light appearance: text over artwork keeps its white. Spotify's over-media
+   token set and the cover play button on a hovered track row both sit on a
+   black scrim, which the rewrite leaves black, so the white there must not
+   follow the page's dark text colour. */
+html[data-mode='light'] .encore-over-media-set {
+    --text-base: #fff !important;
+    --text-subdued: #fff !important;
+    --text-bright-accent: #fff !important;
+    --essential-base: #fff !important;
+    --essential-subdued: #fff !important;
+    --essential-bright-accent: #fff !important;
+    --decorative-base: #fff !important;
+}
+html[data-mode='light'] [data-testid='tracklist-row'] div:has(> img) button {
+    color: #fff !important;
+}
+
+/* Inputs: the extension's own Tailwind preflight reaches Spotify's page and
+   pins every placeholder to a fixed mid grey, which vanishes on a tinted
+   field (the search box sits on the card colour). */
+input::placeholder,
+textarea::placeholder {
+    color: var(--chorus-subtext) !important;
+}
+
+/* Entity header heroes (album, artist, playlist, show, author, …). Spotify
+   sets the colour it pulled from the cover as custom properties inline on the
+   hero, the action bar under it and the sticky top strip (--background-base,
+   with a lighter --background-base-min-contrast for the top of the hero), and
+   its own rules paint from those: the hero in the base colour with the lighter
+   tint fading down, the action bar fading from the base colour into the page.
+   Under a theme the same rules run from the palette instead: the top of the
+   hero is the deepest shade of the main colour, the hero a little lighter, and
+   the action bar lightens into the main colour, so the gradient keeps its
+   shape in the theme's own colour. !important beats the inline values. */
+:root {
+    --chorus-hero: color-mix(in oklab, var(--chorus-main) 76%, #000);
+    --chorus-hero-top: color-mix(in oklab, var(--chorus-main) 58%, #000);
+    /* hovered things on the hero (Follow, the sticky bar's buttons) step towards the text colour */
+    --chorus-hero-lift: color-mix(in oklab, var(--chorus-hero) 84%, var(--chorus-text));
+}
+html[data-mode='light'] {
+    --chorus-hero: color-mix(in oklab, var(--chorus-main) 84%, #000);
+    --chorus-hero-top: color-mix(in oklab, var(--chorus-main) 72%, #000);
+}
+[style*='--background-base'] {
+    --background-base: var(--chorus-hero) !important;
+    --background-base-min-contrast: var(--chorus-hero-top) !important;
+    /* the action bar's fade starts from this, the base at 70 % */
+    --background-base-70: color-mix(in srgb, var(--chorus-hero) 70%, transparent) !important;
+    --background-highlight: var(--chorus-hero-top) !important;
+    --background-press: var(--chorus-hero-top) !important;
+    --background-elevated-base: var(--chorus-hero) !important;
+    --background-elevated-highlight: var(--chorus-hero-top) !important;
+    --background-elevated-press: var(--chorus-hero-top) !important;
+    --background-tinted-base: var(--chorus-hero-lift) !important;
+    --background-tinted-highlight: var(--chorus-hero-lift) !important;
+    --background-tinted-press: var(--chorus-hero-lift) !important;
+    /* the hero's secondary text is tinted from the cover too */
+    --text-subdued: var(--chorus-subtext) !important;
+    --essential-subdued: var(--chorus-subtext) !important;
+    --decorative-subdued: var(--chorus-subtext) !important;
+}
+/* Under a backdrop the hero bands, and the Now playing view, which Spotify
+   tints the same way, sit on a panel that is already translucent, so their
+   own paint stacks on it: painted at the panel's alpha, a band read about
+   twice as solid as the page around it. They paint at the panel's alpha
+   squared instead (--chorus-hero-pct): the full tint when the panels are
+   solid, a trace of it when they are mostly clear, and never far above the
+   panel in between. The action bar's fade (--background-base-70) follows. */
+html[data-backdrop] {
+    --chorus-hero-pct: calc(var(--chorus-panel-pct, 100%) * var(--chorus-panel-alpha, 1));
+}
+html[data-backdrop] [style*='--background-base'] {
+    --background-base: color-mix(
+        in srgb,
+        var(--chorus-hero) var(--chorus-hero-pct),
+        transparent
+    ) !important;
+    --background-base-min-contrast: color-mix(
+        in srgb,
+        var(--chorus-hero-top) var(--chorus-hero-pct),
+        transparent
+    ) !important;
+    --background-base-70: color-mix(
+        in srgb,
+        var(--chorus-hero) calc(var(--chorus-hero-pct) * 7 / 10),
+        transparent
+    ) !important;
+    --background-elevated-base: color-mix(
+        in srgb,
+        var(--chorus-hero) var(--chorus-hero-pct),
+        transparent
+    ) !important;
+}
+/* artist and playlist heroes with a photo: the wash the page keeps behind it, at Spotify's 70 % */
+[data-testid='overscroll-background'] {
+    background-color: color-mix(in srgb, var(--chorus-hero) 70%, transparent) !important;
+}
+html[data-backdrop] [data-testid='overscroll-background'] {
+    background-color: color-mix(
+        in srgb,
+        var(--chorus-hero) calc(var(--chorus-hero-pct) * 7 / 10),
+        transparent
+    ) !important;
+}
+
+/* background */
+.main-home-homeHeader,
+.main-entityHeader-backgroundColor,
+.main-actionBarBackground-background {
+    display: none;
+}
+
+.main-topBar-overlay {
+    background-color: var(--chorus-main);
+}
+* {
+    box-shadow: none !important;
+}
+/* dividers */
+.Y_WW1akjiQKXSzCBalCD {
+    display: none;
+}
+/* navbar */
+.main-rootlist-rootlistDividerContainer {
+    display: none;
+}
+.main-navBar-navBarLinkActive,
+.main-collectionLinkButton-selected,
+.main-rootlist-rootlistItemLinkActive {
+    color: var(--chorus-shadow) !important;
+    background: var(--chorus-selected-row) !important;
+}
+.main-navBar-navBarLink,
+.main-collectionLinkButton-collectionLinkButton,
+.main-rootlist-rootlistItemLink,
+.main-createPlaylistButton-button {
+    border-radius: var(--br-1) !important;
+}
+.main-navBar-navBarLink:hover,
+.main-collectionLinkButton-collectionLinkButton:hover,
+.main-rootlist-rootlistItemLink:hover,
+.main-createPlaylistButton-button:hover {
+    background: var(--chorus-button-disabled);
+}
+.main-rootlist-rootlistItem {
+    padding: 0 8px 0 calc(8px + var(--indentation) * 8px);
+}
+.main-rootlist-rootlistItemLink {
+    padding: 0 16px;
+}
+.main-rootlist-statusIcons,
+.main-rootlist-expandArrow {
+    position: absolute;
+    top: 10px;
+    right: 24px;
+}
+.main-rootlist-expandArrow {
+    top: 8px;
+    color: var(--chorus-subtext);
+}
+.main-rootlist-rootlistItemLinkActive + .main-rootlist-statusIcons .main-rootlist-playButton,
+.main-rootlist-rootlistItemLinkActive + .main-rootlist-expandArrow {
+    color: var(--chorus-shadow) !important;
+}
+.main-navBar-navBarLink {
+    color: var(--chorus-text);
+}
+.main-collectionLinkButton-collectionLinkButton > *,
+.main-createPlaylistButton-button {
+    opacity: 1 !important;
+}
+.main-trackList-rowImagePlayButton,
+.main-trackList-rowImagePlayPauseButton,
+.main-trackList-rowImagePlayPauseButtonPlaying {
+    color: var(--chorus-subtext) !important;
+}
+
+.main-rootlist-rootlist .os-scrollbar {
+    padding: 0 0 0 8px;
+}
+.playback-bar {
+    --bar: var(--chorus-button);
+}
+.volume-bar {
+    --bar: var(--chorus-subtext);
+    margin-right: 8px;
+}
+.x-progressBar-progressBarBg {
+    background-color: var(--chorus-button-disabled);
+}
+.DuvrswZugGajIFNXObAr .progress-bar__slider,
+.epWhU7hHGktzlO_dop6z {
+    background-color: var(--bar) !important;
+}
+.progress-bar__slider {
+    display: block;
+    background-color: var(--chorus-shadow);
+    border: 2px solid var(--bar);
+    height: 16px;
+    width: 16px;
+}
+.playback-bar__progress-time-elapsed,
+.main-playbackBarRemainingTime-container {
+    color: var(--chorus-subtext);
+}
+.player-controls__buttons {
+    margin: 0;
+}
+.player-controls__buttons button:not(.main-playPauseButton-button) {
+    color: var(--chorus-button) !important;
+}
+.connect-device-list-content {
+    border-radius: var(--br-1);
+    border: 1px solid var(--chorus-button-disabled);
+    padding: 12px;
+}
+.connect-device-list-item:hover {
+    background-color: var(--chorus-button-disabled);
+    border-radius: var(--br-2);
+}
+.cover-art-image {
+    border-radius: calc(var(--br-2) / 2);
+}
+.main-coverSlotCollapsed-container[aria-hidden='true'] .cover-art-image {
+    border-radius: var(--br-1);
+}
+/* friends */
+.main-buddyFeed-addFriendsContainer {
+    background-color: var(--chorus-sidebar);
+}
+.main-buddyFeed-friendActivity {
+    padding: 8px;
+    margin: 8px;
+    background: var(--chorus-card);
+    border-radius: var(--br-1);
+}
+.HdRGC,
+.eEsqRZ,
+.main-buddyFeed-usernameAndTimestamp a {
+    color: var(--chorus-text) !important;
+}
+.main-buddyFeed-activityMetadata > :not(:first-child) a,
+.main-buddyFeed-timestamp {
+    color: var(--chorus-subtext) !important;
+}
+.main-avatar-avatar.vreGJrlRqoFkzlSQwvsJ:after {
+    background: var(--chorus-text);
+    box-shadow: none;
+}
+/* cards */
+.main-card-card,
+.view-homeShortcutsGrid-shortcut,
+.main-heroCard-card,
+.a2ruVaZt_DdrdHz3GqgU,
+.x-categoryCard-CategoryCard {
+    background-color: var(--chorus-card) !important;
+    border-radius: var(--br-2) !important;
+}
+
+.view-homeShortcutsGrid-shortcutLink,
+.view-homeShortcutsGrid-shortcut {
+    color: var(--chorus-text) !important;
+    cursor: pointer !important;
+}
+
+.view-homeShortcutsGrid-shortcut:hover {
+    position: relative !important;
+    background: var(--chorus-button-disabled) !important;
+}
+.view-homeShortcutsGrid-shortcutLink:hover {
+    /* position: relative !important; */
+    cursor: pointer !important;
+}
+.main-cardImage-imageWrapper:not(.main-cardImage-circular) {
+    border-radius: var(--br-2);
+}
+.Z35BWOA10YGn5uc9YgAp .main-image-image {
+    border-radius: var(--br-2) 0 0 var(--br-2);
+}
+.zXwER4Lsqq_e7fVVaPkZ {
+    background-color: transparent !important;
+}
+.cSeieV {
+    background-color: var(--chorus-button-active);
+}
+/* menus */
+.main-contextMenu-menu {
+    border: 1px solid var(--chorus-button-disabled);
+    border-radius: var(--br-1);
+    padding: 8px;
+}
+.main-contextMenu-menuItemButton:hover {
+    background-color: var(--chorus-button-disabled);
+}
+.main-contextMenu-menuItemButton {
+    border-radius: var(--br-2);
+}
+.main-contextMenu-menuItemButton::before,
+.main-contextMenu-menuItemButton::after {
+    display: none;
+}
+.main-contextMenu-menuItemButton {
+    color: var(--chorus-text) !important;
+}
+/* input */
+.x-searchInput-searchInputInput,
+.x-proxySettings-proxyInput,
+.main-dropDown-dropDown,
+.QZhV0hWVKlExlKr266jo,
+.nBGzYhSIK1A7qANmTnpk,
+.amTaUy6eMlbKh0wzrOnb {
+    background: var(--chorus-card);
+    border-radius: var(--br-2);
+    height: unset !important;
+}
+.x-searchInput-searchInputSearchIcon,
+.x-searchInput-searchInputInput,
+.x-searchInput-searchInputClearButton {
+    color: var(--chorus-text) !important;
+}
+/* buttons */
+.wCl7pMTEE68v1xuZeZiB:hover,
+.w6j_vX6SF5IxSXrrkYw5:hover,
+.w6j_vX6SF5IxSXrrkYw5[data-context-menu-open='true'],
+.fLS8v3_EfBadEerbGVoR:hover,
+.aAr9nYtPsG7P2LRzciXc {
+    background: var(--chorus-button-disabled);
+    border-radius: var(--br-2);
+}
+.w6j_vX6SF5IxSXrrkYw5 {
+    background-color: transparent;
+}
+.main-actionBar-ActionBarRow button:not(.bqeOGM),
+.QhF9ZR7YOiJeFiEnfkOr button,
+.CpQBQL6M4D3bquNOpKd9,
+.player-controls__buttons button,
+.DbMYFmOEEz9PH1h1zK9n button,
+.main-moreButton-button,
+.w6j_vX6SF5IxSXrrkYw5,
+.gIobRDHAxkAvUaF4_OOL button {
+    color: var(--chorus-button);
+}
+.bqeOGM:hover .ButtonInner-sc-14ud5tc-0,
+.dkGAhA:hover .ButtonInner-sc-14ud5tc-0,
+.fBTYgGyvIbHizHIj7AAX,
+.main-playPauseButton-button {
+    background-color: var(--chorus-button);
+}
+.kxBVag {
+    color: var(--chorus-subtext);
+}
+.main-button-primary,
+.fBTYgGyvIbHizHIj7AAX,
+.main-playPauseButton-button {
+    color: var(--chorus-shadow) !important;
+}
+.aAr9nYtPsG7P2LRzciXc {
+    border: none;
+}
+.main-button-outlined {
+    border-color: var(--chorus-button);
+}
+.rEx3EYgBzS8SoY7dmC6x rect {
+    fill: var(--chorus-button);
+}
+/* scrollbar */
+.os-scrollbar {
+    display: var(--scrollbar);
+}
+.os-scrollbar-handle {
+    border-radius: 8px;
+    background: var(--chorus-button-disabled) !important;
+}
+/* tab bar */
+.oaNVBli46GtVjaQKB15g,
+.lyrics-tabBar-active {
+    color: var(--chorus-shadow);
+    background: var(--chorus-tab-active) !important;
+}
+.JdlKTdpMquftpMwwegZo,
+.lyrics-tabBar-headerItemLink {
+    border-radius: var(--br-2);
+}
+.JdlKTdpMquftpMwwegZo:hover,
+.main-playButton-PlayButton {
+    color: var(--chorus-shadow) !important;
+}
+/* headers */
+.CmkY1Ag0tJDfnFXbGgju:not(.hNTPwmaxPotdJ14dx2W9 *) {
+    border-radius: var(--br-1);
+}
+.main-entityHeader-gray,
+.main-entityHeader-metaData,
+.UyzJidwrGk3awngSGIwv,
+.main-entityHeader-divider {
+    color: var(--chorus-text) !important;
+}
+.main-entityHeader-background {
+    transform: none !important;
+    margin-top: 64px;
+    border-radius: var(--br-1);
+}
+.main-entityHeader-overlay {
+    background: none;
+}
+
+/* tracklist */
+.main-trackList-trackList .JUa6JJNj7R_Y3i4P8YUX {
+    background: var(--chorus-card);
+    border-radius: var(--br-1);
+    padding: 8px;
+}
+.main-trackList-trackListHeaderRow {
+    border: none;
+}
+.main-trackList-trackListRow:hover,
+.jtZMR8Hj94od6BQce98P:hover {
+    background-color: var(--chorus-button-disabled);
+}
+.main-trackList-trackListRow.main-trackList-selected,
+.jtZMR8Hj94od6BQce98P:active {
+    background-color: var(--chorus-tab-active) !important;
+}
+.main-trackList-selected *,
+.main-trackList-rowSubTitle > .main-tracklist-selected {
+    color: var(--chorus-shadow) !important;
+}
+/* .main-trackList-selected  .main-trackList-playingIcon,
+.main-trackList-selected .main-tag-container {
+  background-color: var(--chorus-shadow);
+  color: var(--chorus-text) !important;
+} */
+.main-trackList-trackListRow,
+.jtZMR8Hj94od6BQce98P {
+    border-radius: var(--br-2);
+}
+.main-trackList-trackList {
+    border-radius: var(--br-1);
+    border-bottom: 16px solid var(--chorus-card);
+}
+.fcehhQ {
+    color: var(--chorus-subtext);
+}
+.main-tag-container {
+    background-color: var(--chorus-subtext);
+}
+.main-trackList-filterHighlight {
+    background-color: var(--chorus-button);
+    color: var(--chorus-shadow);
+}
+/* podcasts */
+.main-yourEpisodes-coverContainer,
+.SpVoh9vvBN0kIwzfCiBh,
+.ltjunXlP2FwPEVF992n9 {
+    border-radius: var(--br-1);
+}
+.TT1tIewS2iI8Uz8kLuQB {
+    border-radius: var(--br-2);
+    margin: 0 8px;
+}
+.TT1tIewS2iI8Uz8kLuQB:hover {
+    background-color: var(--chorus-button-disabled);
+}
+.Ng3dPPA2_1CFYkzPukjM {
+    background: var(--chorus-text);
+}
+.Q3wDjXPNY4lACLUxARrd + div {
+    background-color: var(--chorus-card);
+    padding: 8px 0;
+    border-radius: var(--br-1);
+}
+.knWBkA {
+    color: var(--chorus-subtext);
+}
+.qfYkuLpETFW3axnfMntO,
+.poz9gZKE7xqFwgk231J4,
+.UyzJidwrGk3awngSGIwv,
+.xWm_uA0Co4SXVxaO7wlB {
+    color: var(--chorus-text) !important;
+}
+path[fill='#1ed760'] {
+    fill: var(--chorus-button) !important;
+}
+.E4I5I7G2CfW32hLWZaqE,
+.SpVoh9vvBN0kIwzfCiBh {
+    background-color: var(--chorus-card);
+}
+.rFwxt8s8DYY8p1O7tYZW {
+    background: none;
+}
+/* settings */
+.x-toggle-indicator {
+    height: 18px;
+    width: 18px;
+    top: 3px;
+    left: 3px;
+    background: var(--chorus-shadow) !important;
+}
+input:checked ~ .x-toggle-indicatorWrapper .x-toggle-indicator {
+    right: 3px;
+}
+.cOFYck {
+    color: var(--chorus-subtext);
+}
+.main-playlistEditDetailsModal-textElement {
+    border-radius: var(--br-1);
+}
+/* fullscreen */
+.npv-main-container .npv-cross-fade-image {
+    border-radius: calc(var(--br-1) * 3);
+}
+
+.npv-up-next {
+    background: var(--chorus-card) !important;
+    border: none !important;
+    border-radius: var(--br-1);
+}
+.npv-up-next__image {
+    border-radius: var(--br-2);
+}
+.npv-header__metadata {
+    color: var(--chorus-text);
+}
+/* Lyrics. Spotify colours the lyrics page from the playing cover through
+   custom properties set inline on the page's root (the class that root
+   carried, lyrics-lyrics-container, is gone), and paints the page from them.
+   Under a theme the palette takes their place, and under a backdrop the page
+   is one of the translucent panels. !important beats the inline values. */
+.lyrics-lyrics-container,
+[style*='--lyrics-color'] {
+    --lyrics-color-active: var(--chorus-text) !important;
+    --lyrics-color-inactive: var(--chorus-subtext) !important;
+    --lyrics-color-passed: var(--chorus-subtext) !important;
+    --lyrics-color-messaging: var(--chorus-text) !important;
+    --lyrics-color-background: var(--chorus-main) !important;
+    background-color: var(--chorus-main) !important;
+}
+html[data-backdrop] .lyrics-lyrics-container,
+html[data-backdrop] [style*='--lyrics-color'] {
+    --lyrics-color-background: rgba(var(--chorus-rgb-main), var(--chorus-panel-alpha)) !important;
+    background-color: rgba(var(--chorus-rgb-main), var(--chorus-panel-alpha)) !important;
+}
+/* Inside a tagged panel (the main view, or the Now playing view expanded to
+   its cinema) the panel already paints that colour at that alpha, so the
+   lyrics paint nothing of their own, or the two would stack. */
+html[data-backdrop] [data-chorus-panel] .lyrics-lyrics-container,
+html[data-backdrop] [data-chorus-panel] [style*='--lyrics-color'] {
+    --lyrics-color-background: transparent !important;
+    background-color: transparent !important;
+}
+.lyrics-lyrics-background {
+    background: var(--chorus-card) !important;
+}
+.jixVGx,
+.euRuBv {
+    color: var(--chorus-text);
+}
+.XmR5VFpqXOcxRvhuf6OB {
+    border-radius: var(--br-1);
+}
+
+/* footer */
+.main-view-container__mh-footer-container {
+    display: none;
+}
+
+/* sidebar */
+.main-useDropTarget-base + .main-useDropTarget-track {
+    --background-tinted-base: var(--chorus-shadow) !important;
+}
+
+.main-useDropTarget-base:hover {
+    border-radius: var(--br-2);
+    background-color: var(--chorus-button-disabled) !important;
+    --box-hover-background-color: var(--chorus-button-disabled) !important;
+}
+
+.main-trackList-trackListHeaderStuck {
+    background-color: var(--chorus-button-disabled) !important;
+}
+
+a[data-encore-id] {
+    color: var(--chorus-text) !important;
+}
+
+a[data-encore-id='box'] {
+    --box-hover-background-color: var(--chorus-button-disabled) !important;
+    --box-interactive-background-color: var(--chorus-button-disabled) !important;
+}
+
+/* footer */
+.main-view-container__mh-footer-container {
+    display: none;
+}
+
+/* Floating bars. Spotify paints the top bar and the player bar black and
+   bleeds both into the page's padding with a negative margin, so they read as
+   part of the frame. Here each gets a panel on its grid area, inside that
+   bleed, so it floats on the frame like the library and the main view do.
+   The controls sit --bar-pad from every edge of the panel: the bar's own
+   spacing is the bleed plus that, and the spacing Spotify adds for an
+   edge-to-edge bar (the logo's 20px margin, the player bar's 8px left inset)
+   is removed so all four sides match.
+
+   The top bar's panel is its own background: the bleed becomes a transparent
+   border and the background is clipped to the padding box, with the outer
+   radius set so the inner edge rounds by --br-2. No pseudo-element and no
+   stacking context, because an isolated bar traps the search field's
+   dropdown in its layer and the main view paints over it. */
+#global-nav-bar,
+[data-testid='global-nav-bar'] {
+    box-sizing: border-box;
+    height: calc(48px + (var(--panel-gap, 8px) + var(--bar-pad)) * 2) !important;
+    border: var(--panel-gap, 8px) solid transparent !important;
+    border-radius: calc(var(--panel-gap, 8px) + var(--br-2));
+    padding: var(--bar-pad) !important;
+    background-color: var(--chorus-main) !important;
+    background-clip: padding-box;
+}
+
+#global-nav-bar .q0FidAZWryX6_3wcKwT4,
+[data-testid='global-nav-bar'] .q0FidAZWryX6_3wcKwT4 {
+    margin: 0 !important;
+}
+
+/* The player bar's <aside> fills its grid area; its 72px row centres the
+   56px cover, which already leaves 8px above and below. */
+[data-testid='now-playing-bar'] {
+    box-sizing: border-box;
+    border-radius: var(--br-2);
+    background-color: var(--chorus-main) !important;
+    padding: max(0px, calc(var(--bar-pad) - 8px)) var(--bar-pad);
+}
+
+[data-testid='now-playing-bar'] .GT3btISbKLXrhHILRLON {
+    padding-inline-start: 0 !important;
+}
+
+/* Backdrop. A look with a backdrop (lib/types/look) puts data-backdrop on
+   <html> and the picture, its fit, filter and wash in --chorus-backdrop-*
+   properties (lib/utils/backdrop-css). Two fixed layers carry it: the
+   picture on ::before, oversized by twice its blur so the blur's soft edge
+   stays off screen, and the wash on ::after. Both sit at z-index -1 in the
+   root stacking context, above the canvas and below the page, so none of
+   Spotify's own stacking is touched. The frame (the grid container and its
+   ancestors, the player bar's bleeding wrapper; lib/utils/page-panels
+   tags them) and <body> go transparent so the gaps show the picture, and the
+   panels take the main colour at --chorus-panel-alpha, the look's
+   show-through. Anything inside a panel that paints the same surface edge to
+   edge is a "layer" and goes transparent too; smaller things (a sticky
+   header, a card) keep their own colour. */
+html[data-backdrop] {
+    --chorus-panel-alpha: 1;
+}
+html[data-backdrop]::before,
+html[data-backdrop]::after {
+    content: '';
+    position: fixed;
+    z-index: -1;
+    pointer-events: none;
+}
+html[data-backdrop]::before {
+    inset: calc(-2 * var(--chorus-backdrop-blur, 0px));
+    background-color: var(--chorus-frame);
+    background-image: var(--chorus-backdrop-image, none);
+    background-size: var(--chorus-backdrop-size, cover);
+    background-position: var(--chorus-backdrop-position, center);
+    background-repeat: var(--chorus-backdrop-repeat, no-repeat);
+    filter: var(--chorus-backdrop-filter, none);
+    transform: scale(var(--chorus-backdrop-scale, 1));
+}
+html[data-backdrop]::after {
+    inset: 0;
+    background-color: var(--chorus-backdrop-dim, transparent);
+}
+/* A video loop plays in a <video> theming appends to <html> (lib/utils/theming):
+   placed like the picture layer, oversized by twice the blur, under the page
+   at z-index -1, and by tree order between the picture layer and the wash. */
+html[data-backdrop] > #chorus-backdrop-video {
+    position: fixed;
+    top: calc(-2 * var(--chorus-backdrop-blur, 0px));
+    left: calc(-2 * var(--chorus-backdrop-blur, 0px));
+    width: calc(100% + 4 * var(--chorus-backdrop-blur, 0px));
+    height: calc(100% + 4 * var(--chorus-backdrop-blur, 0px));
+    max-width: none;
+    max-height: none;
+    z-index: -1;
+    pointer-events: none;
+    object-fit: var(--chorus-backdrop-fit, cover);
+    object-position: var(--chorus-backdrop-position, center);
+    filter: var(--chorus-backdrop-filter, none);
+    transform: scale(var(--chorus-backdrop-scale, 1));
+    background: transparent;
+}
+/* A drifting gradient: drawn at twice the viewport and slid across it. */
+@keyframes chorus-backdrop-drift {
+    from {
+        background-position: 0% 0%;
+    }
+    to {
+        background-position: 100% 100%;
+    }
+}
+html[data-backdrop='gradient'][data-drift]::before {
+    background-size: 200% 200%;
+    animation: chorus-backdrop-drift 90s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+    html[data-backdrop][data-drift]::before {
+        animation: none;
+    }
+}
+html[data-backdrop] body,
+html[data-backdrop] [data-chorus-frame],
+html[data-backdrop] [data-chorus-panel-layer] {
+    background-color: transparent !important;
+}
+/* A layer that paints its surface as a picture goes clear too: the Now
+   playing view expanded to its cinema draws the colour behind the lyrics as
+   a one-colour gradient, in the shade it read from the cover. */
+html[data-backdrop] [data-chorus-panel-layer] {
+    background-image: none !important;
+}
+/* A pseudo-element that paints a panel colour (the Now playing view draws
+   its surface on its ::before) goes clear like a layer; the walker names
+   which of the two. */
+html[data-backdrop] [data-chorus-panel-pseudo~='before']::before,
+html[data-backdrop] [data-chorus-panel-pseudo~='after']::after {
+    background-color: transparent !important;
+}
+/* Entity pages (artist, album, playlist) paint the main colour on their
+   content wrappers as well, which run far past the view; the panel walker
+   (lib/utils/page-panels) tags those it can reach as layers, and this catches
+   the wrappers it cannot: the main element and its first section. Sticky
+   headers and cards sit deeper and keep their colour. */
+html[data-backdrop] [data-chorus-panel] main,
+html[data-backdrop] [data-chorus-panel] main > section {
+    background-color: transparent !important;
+}
+html[data-backdrop] [data-chorus-panel],
+html[data-backdrop] #global-nav-bar,
+html[data-backdrop] [data-testid='global-nav-bar'],
+html[data-backdrop] [data-testid='now-playing-bar'] {
+    background-color: rgba(var(--chorus-rgb-main), var(--chorus-panel-alpha)) !important;
+}
+
+/* The theme page (lib/components/ThemePage) sits over the main view. Under a
+   backdrop it paints like a panel; inside a tagged panel it paints nothing,
+   since the panel behind it already does. */
+html[data-backdrop] #chorus-theme-page-root {
+    background-color: rgba(var(--chorus-rgb-main), var(--chorus-panel-alpha)) !important;
+}
+html[data-backdrop] [data-chorus-panel] #chorus-theme-page-root {
+    background-color: transparent !important;
+}
+
+/* Clear surfaces (a look's Panels › Surfaces, the default): the controls that
+   float on the bars, Spotify's home button and search pill and Chorus's trays
+   (reached by id: a class here would be taken for one of Spotify's), go translucent with a soft shadow instead of the palette's card colour, so
+   they read as glass over the backdrop. Tinted keeps the card colour. */
+html[data-backdrop][data-surfaces='clear']
+    [data-testid='global-nav-bar']
+    [data-testid='home-button'],
+html[data-backdrop][data-surfaces='clear']
+    [data-testid='global-nav-bar']
+    input[data-testid='search-input'],
+html[data-backdrop][data-surfaces='clear'] #chorus-top-bar-tray,
+html[data-backdrop][data-surfaces='clear'] #chorus-ui {
+    background-color: color-mix(in srgb, var(--chorus-main) 45%, transparent) !important;
+    box-shadow:
+        0 1px 2px rgb(0 0 0 / 25%),
+        0 8px 24px rgb(0 0 0 / 18%),
+        inset 0 1px 0 rgb(255 255 255 / 8%) !important;
+}
+html[data-backdrop][data-surfaces='clear']
+    [data-testid='global-nav-bar']
+    input[data-testid='search-input']:focus {
+    background-color: color-mix(in srgb, var(--chorus-main) 62%, transparent) !important;
+}
+
+/* Glass panels: the backdrop blurred behind each panel. The blur sits on a
+   pseudo-element, never on the panel itself, because backdrop-filter makes
+   a stacking context and a containing block, and the top bar's search
+   dropdown and Spotify's menus have to keep escaping their panels. */
+html[data-backdrop][data-panel-glass] [data-testid='now-playing-bar'] {
+    position: relative;
+}
+html[data-backdrop][data-panel-glass]
+    [data-chorus-area]:not([data-chorus-area='now-playing-bar'])::before,
+html[data-backdrop][data-panel-glass] [data-testid='now-playing-bar']::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: var(--br-2);
+    pointer-events: none;
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    backdrop-filter: blur(24px) saturate(140%);
+}

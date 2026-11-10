@@ -1,0 +1,40 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+package-lock.json
+node_modules
+.output
+stats.html
+stats-*.json
+.wxt
+web-ext.config.ts
+
+# env
+.env
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Vocal-separation model weights (large, fetched separately)
+src/public/models/**/*.onnx
+
+# Self-hosted onnxruntime-web wasm runtime (copied from node_modules at build)
+src/public/ort/
+src/public/models/**/*.bin
+
+# Scratch experiments (not part of the build)
+experiments/

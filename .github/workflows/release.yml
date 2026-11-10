@@ -1,0 +1,98 @@
+name: Release
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    validate:
+        name: Validate
+        uses: ./.github/workflows/validate.yml
+        secrets: inherit
+
+    release:
+        name: Create Release
+        runs-on: ubuntu-22.04
+        needs: [validate]
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - uses: oven-sh/setup-bun@v2
+
+            - name: Configure Git
+              run: |
+                  git config user.email "github-actions@users.noreply.github.com"
+                  git config user.name "GitHub Actions"
+
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+
+            - name: Bump Version
+              id: version
+              run: |
+                  LAST_STABLE=$(git tag --list 'v*' --sort=-version:refname | grep -v beta | head -1)
+                  bunx changelogen@latest --bump --from "$LAST_STABLE"
+                  NEW_VERSION=$(bun --print 'require("./package.json").version')
+                  echo "newVersion=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+            - name: Build and Zip
+              id: build
+              run: |
+                  bun run zip
+                  bun run zip:fox
+
+            - name: Upload Artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  path: .output/*.zip
+                  if-no-files-found: error
+                  include-hidden-files: true
+
+            - name: Commit Version Bump
+              id: push
+              run: |
+                  git add package.json CHANGELOG.md
+                  git commit -am "chore(release): v${{ steps.version.outputs.newVersion }}"
+                  git tag v${{ steps.version.outputs.newVersion }}
+                  git push
+                  git push --tags
+
+            - name: Create GitHub Release
+              run: npx changelogen@latest gh release ${{ steps.version.outputs.newVersion }} --token ${{ github.token }}
+
+            - name: Upload Release Assets
+              run: gh release upload v${{ steps.version.outputs.newVersion }} .output/*-chrome.zip .output/*-firefox.zip
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+
+            # Uploads, waits for the store to finish processing the ~80MB zip, then publishes.
+            # `wxt submit` publishes immediately after upload and fails on large packages.
+            - name: Submit to Chrome Web Store
+              run: node scripts/cws-publish.mjs .output/*-chrome.zip
+              env:
+                  CHROME_EXTENSION_ID: ${{ secrets.EXTENSION_ID }}
+                  CHROME_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+                  CHROME_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+                  CHROME_REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+
+            # Runs even when the Chrome submit failed so one store cannot block the other.
+            - name: Submit to Firefox Add-ons
+              if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+              run: |
+                  bun wxt submit \
+                    --firefox-zip .output/*-firefox.zip --firefox-sources-zip .output/*-sources.zip
+              env:
+                  FIREFOX_EXTENSION_ID: ${{ secrets.AMO_ID }}
+                  FIREFOX_JWT_ISSUER: ${{ secrets.AMO_ISSUER }}
+                  FIREFOX_JWT_SECRET: ${{ secrets.AMO_SECRET }}
+
+            # The release commit and tag already exist by now, so sync even if a store submit failed.
+            - name: Sync main back to develop
+              if: ${{ !cancelled() && steps.push.outcome == 'success' }}
+              run: |
+                  git fetch origin develop
+                  git checkout develop
+                  git merge main --no-edit
+                  git push origin develop
