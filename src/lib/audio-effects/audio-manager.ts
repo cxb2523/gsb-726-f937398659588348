@@ -1,5 +1,6 @@
 import SoundTouch from './soundtouch'
-import { DEFAULT_SILENCE_GATE, SilenceGate, rmsOf } from './silence-gate'
+import { rmsOf } from './silence-gate'
+import { SilenceAccelDecider } from './silence-decider'
 import { createLimiter } from './limiter'
 import { disposeWorklet } from './worklet'
 import { SoundTouchData } from '$lib/stores/playback'
@@ -276,12 +277,13 @@ export default class AudioManager {
         this.setGain(this._currentVolume, this._volumeType)
     }
 
-    // Smart speed: an analyser taps the source and a gate decides when the
-    // signal has been quiet long enough to speed through, and when it is back.
-    // The owner of the element's rate (MediaOverride) acts on the flips.
+    // Smart speed: an analyser taps the source and a decider (see
+    // ./silence-decider) turns each RMS reading into an accelerate/restore
+    // flip, including pause handling and limiter lookahead compensation. The
+    // owner of the element's rate (MediaOverride) acts on the flips.
     private _analyser?: AnalyserNode
     private _silenceLoop: ReturnType<typeof setInterval> | null = null
-    private _silenceGate: SilenceGate | null = null
+    private _silenceDecider: SilenceAccelDecider | null = null
     private _silenceBuffer?: Float32Array
     private _onSilence: ((open: boolean) => void) | null = null
 
@@ -305,31 +307,39 @@ export default class AudioManager {
         } catch {
             // already connected
         }
-        this._silenceGate = new SilenceGate(DEFAULT_SILENCE_GATE)
+        this._silenceDecider = new SilenceAccelDecider(this._audioContext.sampleRate)
         this._silenceBuffer = new Float32Array(this._analyser.fftSize)
         this._silenceLoop = setInterval(() => this.tickSilence(), SILENCE_TICK_MS)
     }
 
     private tickSilence(): void {
-        if (!this._analyser || !this._silenceGate || !this._silenceBuffer) return
-        if (this._element instanceof HTMLMediaElement && this._element.paused) {
-            // Paused reads as silence; never speed through it, and start afresh after.
-            if (this._silenceGate.open) this._onSilence?.(false)
-            this._silenceGate.reset()
-            return
-        }
+        if (!this._analyser || !this._silenceDecider || !this._silenceBuffer) return
         this._analyser.getFloatTimeDomainData(this._silenceBuffer)
-        const change = this._silenceGate.feed(rmsOf(this._silenceBuffer), performance.now())
-        if (change === 'open') this._onSilence?.(true)
-        else if (change === 'close') this._onSilence?.(false)
+        const paused = this._element instanceof HTMLMediaElement ? this._element.paused : false
+        const decision = this._silenceDecider.decide(
+            rmsOf(this._silenceBuffer),
+            performance.now(),
+            paused
+        )
+        if (decision.accelerate) this._onSilence?.(true)
+        if (decision.restore) {
+            // Rewind by the limiter lookahead so the restore point is not
+            // early; the decider returns 0 when there are too few samples to
+            // rewind safely (or the element is not seekable this way).
+            if (decision.resumeOffsetSamples > 0 && this._element instanceof HTMLMediaElement) {
+                const backoff = decision.resumeOffsetSamples / this._audioContext!.sampleRate
+                this._element.currentTime = Math.max(0, this._element.currentTime - backoff)
+            }
+            this._onSilence?.(false)
+        }
     }
 
     /** Stop watching and put the rate back if it was raised. The handler stays for a rebuild. */
     private stopSilenceSkip(): void {
         if (this._silenceLoop) clearInterval(this._silenceLoop)
         this._silenceLoop = null
-        if (this._silenceGate?.open) this._onSilence?.(false)
-        this._silenceGate = null
+        if (this._silenceDecider?.open) this._onSilence?.(false)
+        this._silenceDecider = null
         try {
             this._analyser?.disconnect()
         } catch {
